@@ -1,6 +1,6 @@
 name: cache_audio_player_plus
 description: audio files need to be played and cached for efficient playback without re-downloading from the network.
-version: 4.1.0
+version: 1.1.0
 homepage: https://github.com/cyclone-pk/cache_audio_player_plus
 repository: https://github.com/cyclone-pk/cache_audio_player_plus
 
