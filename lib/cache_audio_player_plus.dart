@@ -11,6 +11,8 @@ import 'package:path_provider/path_provider.dart';
 main() {
   final player = CacheAudioPlayerPlus();
   player.playerNetworkAudio(url: "https://youraudiofilelink", cache: true);
+
+  player.state;
 }
 
 /// This represents a single AudioPlayer, which can play one audio at a time.
@@ -63,12 +65,12 @@ class CacheAudioPlayerPlus {
   /// sent when an audio is paused or stopped.
   ///
   /// [ReleaseMode.loop] also sends events to this stream.
-  Stream<void> get onPlayerComplete => _audioPlayer.onPlayerComplete;
+  Stream get onPlayerComplete => _audioPlayer.onPlayerComplete;
 
   /// Stream of seek completions.
   ///
   /// An event is going to be sent as soon as the audio seek is finished.
-  Stream<void> get onSeekComplete => _audioPlayer.onSeekComplete;
+  Stream get onSeekComplete => _audioPlayer.onSeekComplete;
 
   Stream<String> get onLog => _audioPlayer.onLog;
 

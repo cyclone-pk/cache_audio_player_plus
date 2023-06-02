@@ -30,3 +30,29 @@ moving cursor to a specific position
 player.seek();
 ```
 
+get Current State of the Player
+stopped,
+playing,
+paused,
+completed,
+disposed,
+```dart
+PlayerState state = player.state;
+```
+
+Stream of changes on audio duration.
+```dart
+player.onDurationChanged.listen((duration) {});
+```
+
+Stream of changes on audio position.
+```dart
+player.onPositionChanged.listen((duration) {});
+```
+
+Stream of PlayerState.
+```dart
+player.onPositionChanged.onPlayerStateChanged((playerState) {});
+```
+
+
