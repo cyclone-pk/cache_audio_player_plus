@@ -8,20 +8,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
-main() {
-  final player = CacheAudioPlayerPlus();
-  player.playerNetworkAudio(url: "https://youraudiofilelink", cache: true);
-
-  player.state;
-}
-
 /// This represents a single AudioPlayer, which can play one audio at a time.
 /// To play several audios at the same time, you must create several instances
 /// of this class.
 ///
 /// It holds methods to play, loop, pause, stop, seek the audio, and some useful
 /// hooks for handlers and callbacks.
-
 class CacheAudioPlayerPlus {
   final AudioPlayer _audioPlayer = AudioPlayer();
 

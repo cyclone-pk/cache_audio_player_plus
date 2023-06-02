@@ -30,6 +30,16 @@ moving cursor to a specific position
 player.seek();
 ```
 
+setVolume of the player
+```dart
+player.setBalance(double);
+```
+
+setBalance of the player
+```dart
+player.setBalance(double);
+```
+
 get Current State of the Player
 stopped,
 playing,
