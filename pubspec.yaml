@@ -12,7 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   path_provider: ^2.0.15
-  audioplayers: ^4.1.0
+  audioplayers: ^5.0.0
   dio: ^5.1.2
   hive_flutter: ^1.1.0
 
