@@ -87,6 +87,4 @@ player.onPositionChanged.onPlayerStateChanged((playerState) {});
 
 Note: Ensure that you handle the appropriate events and errors when using the Cache Audio Player Plus plugin.
 
-This readme file provides a simplified overview of the usage of Cache Audio Player Plus and its available methods. Refer to the plugin's documentation for detailed instructions and additional features.
-
 We hope you find Cache Audio Player Plus helpful in incorporating network audio playback and caching functionality into your Flutter applications.

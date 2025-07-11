@@ -8,7 +8,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// This represents a single AudioPlayer, which can play one audio at a time.
+/// This represents a single CacheAudioPlayerPlus, which can play one audio at a time.
 /// To play several audios at the same time, you must create several instances
 /// of this class.
 ///
