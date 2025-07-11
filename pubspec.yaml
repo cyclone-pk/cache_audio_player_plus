@@ -1,6 +1,6 @@
 name: cache_audio_player_plus
 description: A lightweight audio player that streams and caches audio files for seamless playback. Prevents redundant downloads by storing audio locally, ensuring efficient performance and offline support.
-version: 1.1.1
+version: 1.1.1+1
 homepage: https://github.com/cyclone-pk/cache_audio_player_plus
 repository: https://github.com/cyclone-pk/cache_audio_player_plus
 
