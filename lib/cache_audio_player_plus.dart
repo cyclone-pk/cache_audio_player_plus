@@ -8,14 +8,72 @@ import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// This represents a single CacheAudioPlayerPlus, which can play one audio at a time.
-/// To play several audios at the same time, you must create several instances
-/// of this class.
+/// This represents a single CacheAudioPlayerPlus, which can play one audio at
+/// a time. To play several audios at the same time, you must create several
+/// instances of this class.
 ///
-/// It holds methods to play, loop, pause, stop, seek the audio, and some useful
-/// hooks for handlers and callbacks.
+/// It holds methods to play, loop, pause, stop, seek the audio, and some
+/// useful hooks for handlers and callbacks. It also exposes helpers to manage
+/// the on-disk audio cache (pre-caching, clearing, inspecting size, etc.).
 class CacheAudioPlayerPlus {
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  /// Name of the internal Hive box used to store the cache index (url → path).
+  static const String _cacheBoxName = 'cacheAudioPlayerPlus';
+
+  /// Tracks whether [init] has already initialized Hive. Safe guard for
+  /// multiple calls.
+  static bool _hiveInitialized = false;
+
+  /// Optional one-shot initializer. Call this once from your `main()` before
+  /// `runApp(...)` to make sure Hive is ready and the cache box is opened:
+  ///
+  /// ```dart
+  /// Future<void> main() async {
+  ///   WidgetsFlutterBinding.ensureInitialized();
+  ///   await CacheAudioPlayerPlus.init();
+  ///   runApp(const MyApp());
+  /// }
+  /// ```
+  ///
+  /// Calling this is optional — if you skip it, the library will lazily
+  /// initialize Hive the first time a cache-aware method is used. However,
+  /// calling it explicitly is recommended to avoid any first-call latency
+  /// and to ensure a predictable startup order.
+  static Future<void> init() async {
+    if (_hiveInitialized && Hive.isBoxOpen(_cacheBoxName)) return;
+    try {
+      await Hive.initFlutter();
+    } catch (_) {
+      // Hive may already be initialized by the host app — that's fine.
+    }
+    if (!Hive.isBoxOpen(_cacheBoxName)) {
+      await Hive.openBox(_cacheBoxName);
+    }
+    _hiveInitialized = true;
+  }
+
+  /// Returns the cache box, lazily initializing Hive if [init] was never
+  /// called. This keeps the public API backwards compatible: existing users
+  /// who never called [init] will still get a working cache.
+  Future<Box> _getCacheBox() async {
+    if (Hive.isBoxOpen(_cacheBoxName)) {
+      return Hive.box(_cacheBoxName);
+    }
+    try {
+      return await Hive.openBox(_cacheBoxName);
+    } catch (_) {
+      // Hive was probably not initialized yet.
+      await Hive.initFlutter();
+      _hiveInitialized = true;
+      return await Hive.openBox(_cacheBoxName);
+    }
+  }
+
+  /// Derives the cache key for a given URL. The default strategy is to use
+  /// the last path segment (e.g. `track.mp3`) which matches the behavior of
+  /// earlier releases of this package.
+  String _cacheKeyFromUrl(String url) => url.split('/').last;
 
   /// get Current State of the Player
   /// initial state, stop has been called or an error occurred.
@@ -68,6 +126,13 @@ class CacheAudioPlayerPlus {
 
   ///playing  network audio directly from string url
   ///you can enable and disable caching by passing cache default is true
+  ///
+  /// When [cache] is true, the file is downloaded on first playback and
+  /// stored locally. All subsequent calls with the same URL play straight
+  /// from disk with no network activity.
+  ///
+  /// Provide [onDownloadProgress] to observe download progress the first
+  /// time a file is fetched (it won't fire on cache hits).
   Future playerNetworkAudio({
     required String url,
     bool cache = true,
@@ -76,13 +141,15 @@ class CacheAudioPlayerPlus {
     AudioContext? ctx,
     Duration? position,
     PlayerMode? mode,
+    void Function(int received, int total)? onDownloadProgress,
   }) async {
     if (cache) {
-      Box cacheBox = (await Hive.openBox('cacheAudioPlayerPlus'));
-      String urlAsKey = url.split('/').last;
-      if (cacheBox.get(urlAsKey) != null) {
+      Box cacheBox = await _getCacheBox();
+      String urlAsKey = _cacheKeyFromUrl(url);
+      final cachedPath = cacheBox.get(urlAsKey);
+      if (cachedPath is String && File(cachedPath).existsSync()) {
         await _audioPlayer.play(
-          DeviceFileSource(cacheBox.get(urlAsKey)),
+          DeviceFileSource(cachedPath),
           volume: volume,
           position: position,
           balance: balance,
@@ -94,8 +161,12 @@ class CacheAudioPlayerPlus {
       try {
         Directory appDocDir = await getApplicationDocumentsDirectory();
         String audioFilePath = '${appDocDir.path}/$urlAsKey';
-        await Dio().download(url, audioFilePath);
-        cacheBox.put(urlAsKey, audioFilePath);
+        await Dio().download(
+          url,
+          audioFilePath,
+          onReceiveProgress: onDownloadProgress,
+        );
+        await cacheBox.put(urlAsKey, audioFilePath);
         await _audioPlayer.play(
           DeviceFileSource(audioFilePath),
           volume: volume,
@@ -124,6 +195,181 @@ class CacheAudioPlayerPlus {
       }
     }
   }
+
+  /// Plays an audio file that already lives on the device's file system.
+  ///
+  /// Useful when you manage caching yourself or need to play a recording
+  /// the user just made.
+  Future<void> playLocalAudio({
+    required String filePath,
+    double? volume,
+    double? balance,
+    AudioContext? ctx,
+    Duration? position,
+    PlayerMode? mode,
+  }) async {
+    try {
+      await _audioPlayer.play(
+        DeviceFileSource(filePath),
+        volume: volume,
+        position: position,
+        balance: balance,
+        ctx: ctx,
+        mode: mode,
+      );
+    } catch (e) {
+      debugPrint('playLocalAudio error: ${e.toString()}');
+    }
+  }
+
+  /// Plays an audio file bundled as a Flutter asset.
+  ///
+  /// [assetPath] is resolved relative to your `pubspec.yaml` assets section,
+  /// e.g. `sounds/ding.mp3`.
+  Future<void> playAssetAudio({
+    required String assetPath,
+    double? volume,
+    double? balance,
+    AudioContext? ctx,
+    Duration? position,
+    PlayerMode? mode,
+  }) async {
+    try {
+      await _audioPlayer.play(
+        AssetSource(assetPath),
+        volume: volume,
+        position: position,
+        balance: balance,
+        ctx: ctx,
+        mode: mode,
+      );
+    } catch (e) {
+      debugPrint('playAssetAudio error: ${e.toString()}');
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  //  Cache management
+  // --------------------------------------------------------------------------
+
+  /// Returns `true` when the given [url] has already been downloaded and the
+  /// cached file still exists on disk.
+  Future<bool> isCached(String url) async {
+    final box = await _getCacheBox();
+    final path = box.get(_cacheKeyFromUrl(url));
+    if (path is! String) return false;
+    return File(path).existsSync();
+  }
+
+  /// Returns the local file path for a cached [url], or `null` if the URL
+  /// is not cached (or the underlying file was deleted externally).
+  Future<String?> getCachedFilePath(String url) async {
+    final box = await _getCacheBox();
+    final path = box.get(_cacheKeyFromUrl(url));
+    if (path is! String) return null;
+    if (!File(path).existsSync()) return null;
+    return path;
+  }
+
+  /// Downloads and stores an audio file in the cache without playing it.
+  ///
+  /// This is handy for "pre-warming" the cache (e.g. fetching the next track
+  /// in a playlist) so that subsequent playback is instant. If the file is
+  /// already cached, the existing path is returned and no network request
+  /// is issued.
+  ///
+  /// Returns the local file path of the cached file, or `null` on failure.
+  Future<String?> preCacheAudio({
+    required String url,
+    void Function(int received, int total)? onDownloadProgress,
+  }) async {
+    try {
+      final box = await _getCacheBox();
+      final key = _cacheKeyFromUrl(url);
+      final existing = box.get(key);
+      if (existing is String && File(existing).existsSync()) {
+        return existing;
+      }
+      final Directory appDocDir = await getApplicationDocumentsDirectory();
+      final String audioFilePath = '${appDocDir.path}/$key';
+      await Dio().download(
+        url,
+        audioFilePath,
+        onReceiveProgress: onDownloadProgress,
+      );
+      await box.put(key, audioFilePath);
+      return audioFilePath;
+    } catch (e) {
+      debugPrint('preCacheAudio error: ${e.toString()}');
+      return null;
+    }
+  }
+
+  /// Removes the cached audio for a single [url]: deletes the file on disk
+  /// and removes the entry from the cache index.
+  Future<void> clearCacheForUrl(String url) async {
+    final box = await _getCacheBox();
+    final key = _cacheKeyFromUrl(url);
+    final path = box.get(key);
+    if (path is String) {
+      final f = File(path);
+      if (await f.exists()) {
+        try {
+          await f.delete();
+        } catch (_) {}
+      }
+    }
+    await box.delete(key);
+  }
+
+  /// Removes every cached audio file this package knows about and empties
+  /// the cache index. Call this if you want to reclaim disk space or give
+  /// the user a "clear downloads" button.
+  Future<void> clearCache() async {
+    final box = await _getCacheBox();
+    for (final key in box.keys.toList()) {
+      final path = box.get(key);
+      if (path is String) {
+        final f = File(path);
+        if (await f.exists()) {
+          try {
+            await f.delete();
+          } catch (_) {}
+        }
+      }
+    }
+    await box.clear();
+  }
+
+  /// Returns the total size, in bytes, of every audio file currently cached
+  /// by this package. Files missing from disk are silently ignored.
+  Future<int> getCacheSize() async {
+    final box = await _getCacheBox();
+    int total = 0;
+    for (final key in box.keys) {
+      final path = box.get(key);
+      if (path is String) {
+        final f = File(path);
+        if (await f.exists()) {
+          try {
+            total += await f.length();
+          } catch (_) {}
+        }
+      }
+    }
+    return total;
+  }
+
+  /// Returns all cache keys currently stored in the cache index. By default
+  /// the key is the last segment of the URL (the file name).
+  Future<List<String>> getCachedKeys() async {
+    final box = await _getCacheBox();
+    return box.keys.map((e) => e.toString()).toList();
+  }
+
+  // --------------------------------------------------------------------------
+  //  Playback controls (pass-through to audioplayers)
+  // --------------------------------------------------------------------------
 
   /// Stops the audio that is currently playing.
   ///
