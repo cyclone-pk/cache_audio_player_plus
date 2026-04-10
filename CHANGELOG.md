@@ -1,3 +1,8 @@
+## 1.2.1
+
+* Added a runnable `example/` Flutter app demonstrating playback,
+  download progress, pre-caching and cache management.
+
 ## 1.2.0
 
 Backwards-compatible feature release — no breaking changes.
