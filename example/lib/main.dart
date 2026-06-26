@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+// ignore: depend_on_referenced_packages
+import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:cache_audio_player_plus/cache_audio_player_plus.dart';
+import 'package:flutter/material.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,8 +103,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() => _downloadProgress = 0);
   }
 
-  String _fmt(Duration d) =>
-      '${d.inMinutes.toString().padLeft(2, '0')}:'
+  String _fmt(Duration d) => '${d.inMinutes.toString().padLeft(2, '0')}:'
       '${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
@@ -130,9 +131,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
               value: _position.inMilliseconds
                   .clamp(0, _duration.inMilliseconds)
                   .toDouble(),
-              max: _duration.inMilliseconds.toDouble().clamp(1, double.infinity),
-              onChanged: (v) =>
-                  _player.seek(Duration(milliseconds: v.toInt())),
+              max:
+                  _duration.inMilliseconds.toDouble().clamp(1, double.infinity),
+              onChanged: (v) => _player.seek(Duration(milliseconds: v.toInt())),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
