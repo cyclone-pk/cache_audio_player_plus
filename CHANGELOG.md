@@ -1,3 +1,15 @@
+## 1.3.0
+
+* Fixed a cache key collision: cache keys are now derived by MD5-hashing the
+  full URL instead of using only the last path segment. Previously two
+  different URLs that shared the same filename (e.g. `.../x/track.mp3` and
+  `.../y/track.mp3`) resolved to the same key and could serve each other's
+  audio.
+* Added `crypto` dependency (used for MD5 hashing of cache keys).
+
+  Note: because the key derivation changed, files cached by earlier versions
+  will not be found under the new keys and will be re-downloaded once.
+
 ## 1.2.1
 
 * Added a runnable `example/` Flutter app demonstrating playback,
