@@ -44,11 +44,23 @@ class CacheAudioPlayerPlus {
   /// and to ensure a predictable startup order.
   static Future<void> init() async {
     if (_hiveInitialized && Hive.isBoxOpen(_cacheBoxName)) return;
+
+    // `Hive.initFlutter()` resolves the on-disk storage path via
+    // `path_provider`, which requires the Flutter binding to be ready.
+    // Ensure it here so callers who forget don't hit a confusing downstream
+    // "You need to initialize Hive" error.
+    WidgetsFlutterBinding.ensureInitialized();
+
     try {
       await Hive.initFlutter();
-    } catch (_) {
-      // Hive may already be initialized by the host app — that's fine.
+    } on HiveError {
+      // Hive was already initialized by the host app — that's fine. Only a
+      // HiveError signals "already initialized"; any other error (e.g. a
+      // MissingPluginException or path_provider failure) means Hive has NO
+      // storage path, so we must let it propagate instead of masking it and
+      // failing later inside openBox with an unhelpful message.
     }
+
     if (!Hive.isBoxOpen(_cacheBoxName)) {
       await Hive.openBox(_cacheBoxName);
     }
@@ -65,7 +77,11 @@ class CacheAudioPlayerPlus {
     try {
       return await Hive.openBox(_cacheBoxName);
     } catch (_) {
-      // Hive was probably not initialized yet.
+      // Opening failed because Hive was never initialized. Make sure the
+      // Flutter binding is ready (path_provider needs it) before initializing,
+      // then retry. Any failure here now surfaces its real cause instead of
+      // being masked.
+      WidgetsFlutterBinding.ensureInitialized();
       await Hive.initFlutter();
       _hiveInitialized = true;
       return await Hive.openBox(_cacheBoxName);

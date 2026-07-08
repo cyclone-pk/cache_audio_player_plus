@@ -1,3 +1,16 @@
+## 1.3.1
+
+* Fixed `HiveError: You need to initialize Hive or provide a path to store the
+  box.` that some users hit when calling `init()`. `init()` swallowed **every**
+  error from `Hive.initFlutter()`, masking real failures (such as a missing
+  `path_provider` plugin path when the Flutter binding wasn't ready) and then
+  crashing inside `openBox()` with a misleading message.
+  * `init()` now calls `WidgetsFlutterBinding.ensureInitialized()` and only
+    ignores an `already-initialized` `HiveError`; any other error propagates
+    with its real cause.
+  * The lazy `_getCacheBox()` fallback now ensures the binding is ready before
+    initializing Hive as well.
+
 ## 1.3.0
 
 * Fixed a cache key collision: cache keys are now derived by MD5-hashing the
