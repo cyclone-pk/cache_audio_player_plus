@@ -1,3 +1,14 @@
+## 1.3.2
+
+* Fixed iOS playback failure for cached audio files. Cached files are stored
+  on disk under an MD5-hashed filename with no extension. Android inspects the
+  file's magic bytes to detect the format, but iOS (AVFoundation) relies on the
+  file extension or an explicit MIME type hint and would silently fail to play.
+  A MIME type is now derived from the original URL's extension (e.g. `.mp3` →
+  `audio/mpeg`) and passed to `DeviceFileSource`, ensuring consistent playback
+  across both platforms. Supported hints: mp3/mpeg, m4a/mp4, aac, wav, ogg,
+  flac.
+
 ## 1.3.1
 
 * Fixed `HiveError: You need to initialize Hive or provide a path to store the
