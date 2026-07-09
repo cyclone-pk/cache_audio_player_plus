@@ -1,4 +1,4 @@
-library;
+library cache_audio_player_plus;
 
 import 'dart:convert';
 import 'dart:io';
